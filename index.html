@@ -65,6 +65,13 @@
             min-height: 40px; /* Ensure space for message */
             margin-bottom: 15px;
         }
+        .confetti-particle {
+            position: fixed; /* Posición relativa a la ventana del navegador */
+            pointer-events: none; /* Para que no interfieran con los clics */
+            z-index: 9999; /* Asegura que estén por encima de todo */
+            opacity: 1;
+            /* El tamaño y color se establecerán con JavaScript */
+        }
         .feedback-message.correct {
             background-color: #dcfce7; /* Light green */
             color: #166534; /* Dark green */
@@ -72,6 +79,24 @@
         .feedback-message.incorrect {
             background-color: #fee2e2; /* Light red */
             color: #991b1b; /* Dark red */
+        }
+        .feedback-message.correct.animate-pulse {
+            animation: pulseCorrect 0.8s ease-in-out;
+        }
+
+        @keyframes pulseCorrect {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); /* Color verde de Tailwind (green-400) */
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 10px 15px rgba(74, 222, 128, 0);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+            }
         }
         .score-container {
             font-size: 1.2rem;
@@ -130,7 +155,55 @@
             .title {
                 font-size: 1.5rem;
             }
-        }
+        }        /* ... (tus estilos existentes) ... */
+        
+                .incorrect-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background-color: rgba(40, 40, 40, 0.9); /* Fondo oscuro semi-transparente */
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 10000; /* Asegura que esté por encima de todo */
+                    opacity: 0;
+                    visibility: hidden;
+                    transition: opacity 0.4s ease-in-out, visibility 0.4s ease-in-out;
+                    padding: 1rem; /* Espacio por si el contenido es muy grande en pantallas pequeñas */
+                }
+        
+                .incorrect-overlay.visible {
+                    opacity: 1;
+                    visibility: visible;
+                }
+        
+                .incorrect-overlay-content {
+                    text-align: center;
+                    color: white;
+                    padding: 20px 30px;
+                    background-color: #ef4444; /* Rojo (Tailwind red-500) */
+                    border-radius: 12px;
+                    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+                    transform: scale(0.9);
+                    opacity: 0;
+                    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease-in-out; /* Efecto de "pop" */
+                }
+        
+                .incorrect-overlay.visible .incorrect-overlay-content {
+                    transform: scale(1);
+                    opacity: 1;
+                }
+        
+                /* Ajustes para el texto dentro del overlay (ya aplicados con clases de Tailwind en el HTML) */
+                /* .incorrect-overlay-content p { font-size: 1.5rem; margin-bottom: 10px; } */
+                /* .incorrect-overlay-content h2 { font-size: 3rem; font-weight: bold; } */
+        
+        
+                /* Mobile responsiveness */
+                /* ... (el resto de tus estilos) ... */
+        
     </style>
 </head>
 <body>
@@ -157,175 +230,18 @@
         </div>
     </div>
 
-    <script>
-        // Vocabulary definition for the game
-        // Each object has an 'image' (URL or local path) and the correct 'word' in English.
-        const vocabulary = [
-            { image: "img/mountains.jpg", word: "mountains" },
-            { image: "img/plain.jpg", word: "plain" },
-            { image: "img/river.jpg", word: "river" },
-            { image: "img/lake.jpg", word: "lake" },
-            { image: "img/building.jpg", word: "building" },
-            { image: "img/beach.jpg", word: "beach" },
-            { image: "img/island.jpg", word: "island" },
-            { image: "img/archipelago.jpg", word: "archipelago" },
-            // Updated entry for "bay" with the user-provided image
-            { image: "img/bay.jpg", word: "bay" }, 
-            { image: "img/bridge.jpg", word: "bridge" },
-            { image: "img/farm.jpg", word: "farm" },
-            { image: "img/forest.jpg", word: "forest" },
-            { image: "img/peninsula.jpg", word: "peninsula" },
-            { image: "img/port.jpg", word: "port" },
-            { image: "img/road.jpg", word: "road" },
-            { image: "img/sea.jpg", word: "sea" },
-            { image: "img/tunnel.jpg", word: "tunnel" },
-            { image: "img/valley.jpg", word: "valley" },
-            { image: "img/plant_a_tree.jpg", word: "plant a tree" },
-            { image: "img/pollution.jpg", word: "pollution" },
-            { image: "img/recycle_rubbish.jpg", word: "recycle rubbish" },
-            { image: "img/ride_your_bike.jpg", word: "ride your bike" },
-            { image: "img/rural_landscape.jpg", word: "rural landscape" },
-            { image: "img/urban_landscape.jpg", word: "urban landscape" },
-            { image: "img/walk.jpg", word: "walk" },
-        ];
-
-        let currentQuestionIndex = 0;
-        let score = 0;
-        let shuffledVocabulary = [];
-
-        // DOM Elements
-        const gameImage = document.getElementById('game-image');
-        const optionsGrid = document.getElementById('options-grid');
-        const feedbackMessage = document.getElementById('feedback-message');
-        const scoreDisplay = document.getElementById('score');
-        const totalQuestionsDisplay = document.getElementById('total-questions');
-        const nextButton = document.getElementById('next-button');
-        const restartButton = document.getElementById('restart-button');
-
-        // Function to shuffle an array (Fisher-Yates algorithm)
-        function shuffleArray(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-            return array;
-        }
-
-        // Function to start or restart the game
-        function startGame() {
-            score = 0;
-            currentQuestionIndex = 0;
-            shuffledVocabulary = shuffleArray([...vocabulary]); // Shuffled copy of vocabulary
-            totalQuestionsDisplay.textContent = shuffledVocabulary.length;
-            scoreDisplay.textContent = score;
-            feedbackMessage.textContent = '';
-            feedbackMessage.className = 'feedback-message'; // Reset class
-            nextButton.classList.add('hidden');
-            restartButton.textContent = 'Restart Game';
-            loadQuestion();
-        }
-
-        // Function to load a new question
-        function loadQuestion() {
-            if (currentQuestionIndex >= shuffledVocabulary.length) {
-                showFinalScore();
-                return;
-            }
-
-            const currentItem = shuffledVocabulary[currentQuestionIndex];
-            gameImage.src = currentItem.image;
-            gameImage.alt = `Image of ${currentItem.word}`; // Descriptive alt text in English
-            // Fallback for image loading errors
-            gameImage.onerror = function() {
-                this.onerror=null; // Prevents infinite loop if placeholder also fails
-                this.src='https://placehold.co/600x300/e0f2fe/777777?text=Image+Not+Found+-+'+currentItem.word;
-                this.alt = `Error loading image for ${currentItem.word}. Placeholder shown.`;
-            };
-
-
-            optionsGrid.innerHTML = ''; // Clear previous options
-            feedbackMessage.textContent = '';
-            feedbackMessage.className = 'feedback-message';
-            nextButton.classList.add('hidden');
-
-            // Generate options: 1 correct and 2 incorrect
-            const correctAnswer = currentItem.word; // Correct answer is the English word
-            let options = [correctAnswer];
-            
-            const incorrectAnswers = shuffledVocabulary
-                .filter(item => item.word !== correctAnswer) 
-                .map(item => item.word); 
-
-            const shuffledIncorrect = shuffleArray([...new Set(incorrectAnswers)]); 
-
-            for(let i=0; options.length < 3 && i < shuffledIncorrect.length; i++) {
-                if (!options.includes(shuffledIncorrect[i])) {
-                     options.push(shuffledIncorrect[i]);
-                }
-            }
-            while (options.length < 3 && shuffledVocabulary.length > 2) { 
-                 let randomWord = shuffledVocabulary[Math.floor(Math.random() * shuffledVocabulary.length)].word;
-                 if (!options.includes(randomWord)) {
-                    options.push(randomWord);
-                 }
-            }
-             while (options.length < 3) { 
-                options.push(`Option ${options.length + 1}`);
-            }
-
-            options = shuffleArray(options); 
-
-            options.forEach(optionText => {
-                const button = document.createElement('button');
-                button.textContent = optionText; 
-                button.classList.add('option-button');
-                button.addEventListener('click', () => handleOptionClick(optionText, correctAnswer));
-                optionsGrid.appendChild(button);
-            });
-        }
-
-        // Function to handle option click
-        function handleOptionClick(selectedOption, correctAnswer) {
-            document.querySelectorAll('.option-button').forEach(btn => btn.disabled = true);
-
-            if (selectedOption === correctAnswer) {
-                score++;
-                scoreDisplay.textContent = score;
-                feedbackMessage.textContent = 'Correct! 🎉';
-                feedbackMessage.classList.add('correct');
-            } else {
-                feedbackMessage.textContent = `Incorrect. The answer was "${correctAnswer}". 🙁`;
-                feedbackMessage.classList.add('incorrect');
-            }
-            nextButton.classList.remove('hidden');
-             if (currentQuestionIndex >= shuffledVocabulary.length -1) {
-                nextButton.textContent = 'View Final Score';
-            } else {
-                nextButton.textContent = 'Next';
-            }
-        }
-
-        // Function to show the final score
-        function showFinalScore() {
-            gameImage.src = `https://placehold.co/600x300/e0f2fe/0c4a6e?text=Game+Over!`;
-            gameImage.alt = "Game Over";
-            optionsGrid.innerHTML = '';
-            feedbackMessage.textContent = `Game complete! Your final score is ${score} out of ${shuffledVocabulary.length}.`;
-            feedbackMessage.className = 'feedback-message correct'; 
-            nextButton.classList.add('hidden');
-            restartButton.textContent = 'Play Again';
-        }
-
-        // Event listeners for control buttons
-        nextButton.addEventListener('click', () => {
-            currentQuestionIndex++;
-            loadQuestion();
-        });
-
-        restartButton.addEventListener('click', startGame);
-
-        // Start the game when the page loads
-        window.onload = startGame;
-    </script>
+    
+    
+        <!-- Overlay para respuesta incorrecta -->
+        <div id="incorrect-answer-overlay" class="incorrect-overlay">
+            <div class="incorrect-overlay-content">
+                <p class="text-xl md:text-2xl mb-2">La respuesta correcta era:</p>
+                <h2 id="correct-answer-text" class="text-4xl md:text-5xl font-bold"></h2>
+            </div>
+        </div>
+        <script src="script.js"></script>
+    </body>
+    </html>
+    
 </body>
 </html>
