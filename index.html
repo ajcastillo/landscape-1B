@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Landscape Vocabulary Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f9ff; /* Light blue background */
+        }
+        .game-container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .image-container {
+            width: 100%;
+            height: 300px; /* Fixed height for consistency */
+            margin-bottom: 20px;
+            border-radius: 12px;
+            overflow: hidden; /* Ensures image stays within rounded corners */
+            background-color: #e0f2fe; /* Lighter blue for image background */
+        }
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Ensures image covers the container, might crop */
+        }
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .option-button {
+            padding: 12px 15px;
+            border: 2px solid #0ea5e9; /* Sky blue border */
+            border-radius: 8px;
+            background-color: #ffffff;
+            color: #0369a1; /* Darker sky blue text */
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        .option-button:hover {
+            background-color: #bae6fd; /* Lighter sky blue on hover */
+            transform: translateY(-2px);
+        }
+        .option-button:active {
+            transform: translateY(0);
+        }
+        .feedback-message {
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-align: center;
+            min-height: 40px; /* Ensure space for message */
+            margin-bottom: 15px;
+        }
+        .feedback-message.correct {
+            background-color: #dcfce7; /* Light green */
+            color: #166534; /* Dark green */
+        }
+        .feedback-message.incorrect {
+            background-color: #fee2e2; /* Light red */
+            color: #991b1b; /* Dark red */
+        }
+        .score-container {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #075985; /* Darker blue for score */
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .control-buttons button {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .next-button {
+            background-color: #0ea5e9; /* Sky blue */
+            color: white;
+            border: none;
+        }
+        .next-button:hover {
+            background-color: #0284c7; /* Darker sky blue */
+        }
+        .restart-button {
+            background-color: #f97316; /* Orange */
+            color: white;
+            border: none;
+        }
+        .restart-button:hover {
+            background-color: #ea580c; /* Darker orange */
+        }
+        .title {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #0c4a6e; /* Darkest blue */
+            margin-bottom: 20px;
+        }
+        /* Mobile responsiveness */
+        @media (max-width: 600px) {
+            .game-container {
+                margin: 10px;
+                padding: 15px;
+            }
+            .image-container {
+                height: 200px; /* Smaller height for mobile */
+            }
+            .options-grid {
+                grid-template-columns: 1fr; /* Single column for options on small screens */
+            }
+            .option-button {
+                font-size: 1rem;
+                padding: 10px;
+            }
+            .title {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1 class="title">🌍 Landscape Game 🏞️</h1>
+
+        <div id="image-container" class="image-container">
+            <img id="game-image" src="https://placehold.co/600x300/a0c4ff/333333?text=Landscape" alt="Landscape" onerror="this.onerror=null;this.src='https://placehold.co/600x300/e0f2fe/777777?text=Image+Not+Found';">
+        </div>
+
+        <div id="options-grid" class="options-grid">
+            </div>
+
+        <div id="feedback-message" class="feedback-message">
+            </div>
+
+        <div class="score-container">
+            Score: <span id="score">0</span> / <span id="total-questions">0</span>
+        </div>
+
+        <div class="control-buttons flex justify-around">
+            <button id="next-button" class="next-button hidden">Next</button>
+            <button id="restart-button" class="restart-button">Restart Game</button>
+        </div>
+    </div>
+
+    <script>
+        // Vocabulary definition for the game
+        // Each object has an 'image' (URL or local path) and the correct 'word' in English.
+        const vocabulary = [
+            { image: "img/mountains.jpg", word: "mountains" },
+            { image: "img/plain.jpg", word: "plain" },
+            { image: "img/river.jpg", word: "river" },
+            { image: "img/lake.jpg", word: "lake" },
+            { image: "img/building.jpg", word: "building" },
+            { image: "img/beach.jpg", word: "beach" },
+            { image: "img/island.jpg", word: "island" },
+            { image: "img/archipelago.jpg", word: "archipelago" },
+            // Updated entry for "bay" with the user-provided image
+            { image: "img/bay.jpg", word: "bay" }, 
+            { image: "img/bridge.jpg", word: "bridge" },
+            { image: "img/farm.jpg", word: "farm" },
+            { image: "img/forest.jpg", word: "forest" },
+            { image: "img/peninsula.jpg", word: "peninsula" },
+            { image: "img/port.jpg", word: "port" },
+            { image: "img/road.jpg", word: "road" },
+            { image: "img/sea.jpg", word: "sea" },
+            { image: "img/tunnel.jpg", word: "tunnel" },
+            { image: "img/valley.jpg", word: "valley" },
+            { image: "img/plant_a_tree.jpg", word: "plant a tree" },
+            { image: "img/pollution.jpg", word: "pollution" },
+            { image: "img/recycle_rubbish.jpg", word: "recycle rubbish" },
+            { image: "img/ride_your_bike.jpg", word: "ride your bike" },
+            { image: "img/rural_landscape.jpg", word: "rural landscape" },
+            { image: "img/urban_landscape.jpg", word: "urban landscape" },
+            { image: "img/walk.jpg", word: "walk" },
+        ];
+
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let shuffledVocabulary = [];
+
+        // DOM Elements
+        const gameImage = document.getElementById('game-image');
+        const optionsGrid = document.getElementById('options-grid');
+        const feedbackMessage = document.getElementById('feedback-message');
+        const scoreDisplay = document.getElementById('score');
+        const totalQuestionsDisplay = document.getElementById('total-questions');
+        const nextButton = document.getElementById('next-button');
+        const restartButton = document.getElementById('restart-button');
+
+        // Function to shuffle an array (Fisher-Yates algorithm)
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // Function to start or restart the game
+        function startGame() {
+            score = 0;
+            currentQuestionIndex = 0;
+            shuffledVocabulary = shuffleArray([...vocabulary]); // Shuffled copy of vocabulary
+            totalQuestionsDisplay.textContent = shuffledVocabulary.length;
+            scoreDisplay.textContent = score;
+            feedbackMessage.textContent = '';
+            feedbackMessage.className = 'feedback-message'; // Reset class
+            nextButton.classList.add('hidden');
+            restartButton.textContent = 'Restart Game';
+            loadQuestion();
+        }
+
+        // Function to load a new question
+        function loadQuestion() {
+            if (currentQuestionIndex >= shuffledVocabulary.length) {
+                showFinalScore();
+                return;
+            }
+
+            const currentItem = shuffledVocabulary[currentQuestionIndex];
+            gameImage.src = currentItem.image;
+            gameImage.alt = `Image of ${currentItem.word}`; // Descriptive alt text in English
+            // Fallback for image loading errors
+            gameImage.onerror = function() {
+                this.onerror=null; // Prevents infinite loop if placeholder also fails
+                this.src='https://placehold.co/600x300/e0f2fe/777777?text=Image+Not+Found+-+'+currentItem.word;
+                this.alt = `Error loading image for ${currentItem.word}. Placeholder shown.`;
+            };
+
+
+            optionsGrid.innerHTML = ''; // Clear previous options
+            feedbackMessage.textContent = '';
+            feedbackMessage.className = 'feedback-message';
+            nextButton.classList.add('hidden');
+
+            // Generate options: 1 correct and 2 incorrect
+            const correctAnswer = currentItem.word; // Correct answer is the English word
+            let options = [correctAnswer];
+            
+            const incorrectAnswers = shuffledVocabulary
+                .filter(item => item.word !== correctAnswer) 
+                .map(item => item.word); 
+
+            const shuffledIncorrect = shuffleArray([...new Set(incorrectAnswers)]); 
+
+            for(let i=0; options.length < 3 && i < shuffledIncorrect.length; i++) {
+                if (!options.includes(shuffledIncorrect[i])) {
+                     options.push(shuffledIncorrect[i]);
+                }
+            }
+            while (options.length < 3 && shuffledVocabulary.length > 2) { 
+                 let randomWord = shuffledVocabulary[Math.floor(Math.random() * shuffledVocabulary.length)].word;
+                 if (!options.includes(randomWord)) {
+                    options.push(randomWord);
+                 }
+            }
+             while (options.length < 3) { 
+                options.push(`Option ${options.length + 1}`);
+            }
+
+            options = shuffleArray(options); 
+
+            options.forEach(optionText => {
+                const button = document.createElement('button');
+                button.textContent = optionText; 
+                button.classList.add('option-button');
+                button.addEventListener('click', () => handleOptionClick(optionText, correctAnswer));
+                optionsGrid.appendChild(button);
+            });
+        }
+
+        // Function to handle option click
+        function handleOptionClick(selectedOption, correctAnswer) {
+            document.querySelectorAll('.option-button').forEach(btn => btn.disabled = true);
+
+            if (selectedOption === correctAnswer) {
+                score++;
+                scoreDisplay.textContent = score;
+                feedbackMessage.textContent = 'Correct! 🎉';
+                feedbackMessage.classList.add('correct');
+            } else {
+                feedbackMessage.textContent = `Incorrect. The answer was "${correctAnswer}". 🙁`;
+                feedbackMessage.classList.add('incorrect');
+            }
+            nextButton.classList.remove('hidden');
+             if (currentQuestionIndex >= shuffledVocabulary.length -1) {
+                nextButton.textContent = 'View Final Score';
+            } else {
+                nextButton.textContent = 'Next';
+            }
+        }
+
+        // Function to show the final score
+        function showFinalScore() {
+            gameImage.src = `https://placehold.co/600x300/e0f2fe/0c4a6e?text=Game+Over!`;
+            gameImage.alt = "Game Over";
+            optionsGrid.innerHTML = '';
+            feedbackMessage.textContent = `Game complete! Your final score is ${score} out of ${shuffledVocabulary.length}.`;
+            feedbackMessage.className = 'feedback-message correct'; 
+            nextButton.classList.add('hidden');
+            restartButton.textContent = 'Play Again';
+        }
+
+        // Event listeners for control buttons
+        nextButton.addEventListener('click', () => {
+            currentQuestionIndex++;
+            loadQuestion();
+        });
+
+        restartButton.addEventListener('click', startGame);
+
+        // Start the game when the page loads
+        window.onload = startGame;
+    </script>
+</body>
+</html>
